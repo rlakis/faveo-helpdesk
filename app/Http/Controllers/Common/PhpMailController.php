@@ -63,11 +63,40 @@ class PhpMailController extends Controller
         return $email_id;
     }
 
+    
+    private function ignoreSendMail($to, $message)
+    {
+        $template_type = $this->checkElement('scenario', $message);
+        if (
+                $template_type == 'registration-notification' ||
+                $template_type == 'create-ticket-by-agent' ||
+                $template_type == 'close-ticket')
+        {
+            return true;
+        }
+
+        if (is_array($to) && isset($to['email']))
+    	{
+            if ($to['email'] == 'support@mourjan.com' || $to['email'] == 'noreply@mourjan.com') 
+            {
+                return true;
+            }
+        }
+        
+        error_log("{email: ". ((is_array($to) && isset($to['email'])) ? $to['email'] : "") .", scenario: " .$template_type."}");
+        return false;
+    }
+    
+    
     public function sendmail($from, $to, $message, $template_variables)
     {
-        $this->setQueue();
-        $job = new \App\Jobs\SendEmail($from, $to, $message, $template_variables);
-        $this->dispatch($job);
+        if (!$this->ignoreSendMail($to, $message))
+        {
+            
+            $this->setQueue();
+            $job = new \App\Jobs\SendEmail($from, $to, $message, $template_variables);
+            $this->dispatch($job);
+        }
     }
 
     public function sendEmail($from, $to, $message, $template_variables)
